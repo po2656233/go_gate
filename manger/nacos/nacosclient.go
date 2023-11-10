@@ -26,9 +26,10 @@ func getNacosClientParam() (sc []constant.ServerConfig, cc constant.ClientConfig
 		constant.WithCacheDir(config.GlobalXmlConfig.Nacos.Cachedir), //在nacos服关闭后,使用之前缓存的内容
 		constant.WithLogLevel(config.GlobalXmlConfig.Nacos.Level),
 	)
-
 	return
 }
+
+// GetHealthIP 获取有效的服务器IP
 func GetHealthIP(servername string) (address string, err error) {
 	// 获取参数
 	sc, cc := getNacosClientParam()
@@ -74,6 +75,7 @@ func GetHealthIP(servername string) (address string, err error) {
 	return addr, err
 }
 
+// Subscribe 订阅处理服务列表
 func Subscribe(servername string, f func(services []model.SubscribeService, err error)) error {
 	// 获取参数
 	sc, cc := getNacosClientParam()

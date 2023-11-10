@@ -11,7 +11,7 @@
 
 - kiss/net 网关，反代 tcp、websocket 协议到后端 tcp 线路，
 
-- 支持线路检测、负载均衡、realip等，详见源码
+- 支持线路检测、负载均衡、支持nacos获取服务、realip等，详见源码
 
 
 ## 安装

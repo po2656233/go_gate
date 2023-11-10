@@ -3,6 +3,8 @@ package proxy
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"github.com/nacos-group/nacos-sdk-go/model"
 	"github.com/nothollyhigh/kiss/log"
 	"go_gate/config"
 	"go_gate/manger/nacos"
@@ -77,9 +79,23 @@ func (mgr *ProxyBase) AssignLine(serverID string) *Line {
 
 	// 启用nacos时,则从nacos中获取服务地址
 	if config.GlobalXmlConfig.Nacos.Enable {
+		if config.GlobalXmlConfig.Nacos.Level == "subscribe" {
+			var line *Line = nil
+			_ = nacos.Subscribe(serverID, func(services []model.SubscribeService, err error) {
+				for _, service := range services {
+					if service.Enable && 0 < service.Weight {
+						line = NewLine(serverID, fmt.Sprintf("%v:%v", service.Ip, service.Port), DEFAULT_TCP_CHECKLINE_TIMEOUT, DEFAULT_TCP_CHECKLINE_INTERVAL, config.GlobalXmlConfig.Nacos.Item.Maxload, config.GlobalXmlConfig.Options.Redirect)
+						return
+					}
+				}
+			})
+			return line
+		}
+
 		if addr, err := nacos.GetHealthIP(serverID); err == nil {
 			return NewLine(serverID, addr, DEFAULT_TCP_CHECKLINE_TIMEOUT, DEFAULT_TCP_CHECKLINE_INTERVAL, config.GlobalXmlConfig.Nacos.Item.Maxload, config.GlobalXmlConfig.Options.Redirect)
 		}
+
 	}
 
 	var line *Line = nil
