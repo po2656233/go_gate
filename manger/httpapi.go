@@ -82,7 +82,7 @@ type InterfaceInfo struct {
 func SaveConfig() bool {
 	// 保存当前配置
 	oldPath := fmt.Sprintf("config_%v.xml", time.Now().Unix())
-	_ = os.Rename("config.xml", oldPath)
+	_ = os.Rename("./config/config.xml", oldPath)
 	newConfig, err := xml.MarshalIndent(config.GlobalXmlConfig, "", "\t")
 	if err != nil {
 		log.Info("SaveConfig finish! but not save err:%v", err)
@@ -90,7 +90,7 @@ func SaveConfig() bool {
 	}
 	log.Info("SaveConfig finish! ok")
 	//清空后写入 ModeAppend 也会清空
-	_ = os.WriteFile("config.xml", newConfig, os.ModeAppend)
+	_ = os.WriteFile("./config/config.xml", newConfig, os.ModeAppend)
 	return true
 }
 
