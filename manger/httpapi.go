@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -80,19 +81,36 @@ type InterfaceInfo struct {
 	ByteRecv uint64
 }
 
+var writeLock sync.RWMutex
+
 func SaveConfig() bool {
+	writeLock.Lock()
+	defer writeLock.Unlock()
 	// 保存当前配置
-	oldPath := fmt.Sprintf("./config/config_%v.xml", time.Now().Unix())
-	_ = os.Rename("./config/config.xml", oldPath)
+	flag := os.O_CREATE | os.O_RDWR | os.O_TRUNC
+	model := os.ModePerm
+	if config.GlobalXmlConfig.Options.Backup {
+		flag = os.O_CREATE | os.O_RDWR | os.O_APPEND
+		model = os.ModeAppend | os.ModePerm
+		oldPath := fmt.Sprintf("./config/config_%v.xml", time.Now().Unix())
+		_ = os.Rename("./config/config.xml", oldPath)
+	}
 	newConfig, err := xml.MarshalIndent(config.GlobalXmlConfig, "", "\t")
 	if err != nil {
 		log.Info("SaveConfig finish! but not save err:%v", err)
 		return false
 	}
-	log.Info("SaveConfig finish! ok")
+
 	//清空后写入 ModeAppend 也会清空
-	_ = os.WriteFile("./config/config.xml", newConfig, os.ModeAppend)
-	return true
+	f, err := os.OpenFile("./config/config.xml", flag, model)
+	if err != nil {
+		fmt.Println(err)
+	}
+	f.Write(newConfig)
+	f.Close()
+
+	log.Info("SaveConfig finish! err:%v", err)
+	return err != nil
 }
 
 func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -398,10 +416,13 @@ func registerNode(w http.ResponseWriter, r *http.Request) bool {
 		w.Write([]byte("register failed! "))
 	} else {
 		log.Info("register type:%v serverId:%v addr:%v port:%v maxload:%v   successful!", strType, strServerName, strIp, strPort, maxload)
-		w.Write([]byte("register successful! "))
+
 		if !SaveConfig() {
+			w.Write([]byte("register successful! "))
+		} else {
 			w.Write([]byte("warning: update config finish! But cannot save config!"))
 		}
+
 	}
 	return true
 }
@@ -433,13 +454,19 @@ func removeNode(w http.ResponseWriter, r *http.Request) bool {
 					pLine := proxy.GetLine(line.ServerID, addr)
 					if pLine != nil && pLine.Remote == addr {
 						isOk = true
-						busLine.Lines = append(busLine.Lines[:i], busLine.Lines[i+1:]...)
+						line.Nodes = delNode(line.Nodes, addr)
+						if 0 == len(line.Nodes) {
+							busLine.Lines = append(busLine.Lines[:i], busLine.Lines[i+1:]...)
+						}
 						break
 					}
 					if line.ServerID == strServerName {
 						if pLine != nil {
 							isOk = true
-							busLine.Lines = append(busLine.Lines[:i], busLine.Lines[i+1:]...)
+							line.Nodes = delNode(line.Nodes, addr)
+							if 0 == len(line.Nodes) {
+								busLine.Lines = append(busLine.Lines[:i], busLine.Lines[i+1:]...)
+							}
 							break
 						}
 					}
@@ -453,12 +480,25 @@ func removeNode(w http.ResponseWriter, r *http.Request) bool {
 		w.Write([]byte("remove line failed:no have! "))
 	} else {
 		log.Info("remove line type:%v serverId:%v addr:%v port:%v maxload:%v   successful!", strType, strServerName, strIp, strPort, maxload)
-		w.Write([]byte("remove line successful! "))
 		if !SaveConfig() {
+			w.Write([]byte("remove successful! "))
+		} else {
 			w.Write([]byte("warning: remove and update config finish! But cannot save config!"))
 		}
+
 	}
 	return isOk
+}
+
+func delNode(nodes []config.XMLNode, addr string) []config.XMLNode {
+	for i, node := range nodes {
+		nodeAddr := node.Ip + ":" + node.Port
+		if node.Addr == addr || nodeAddr == addr {
+			nodes = append(nodes[:i], nodes[i+1:]...)
+			break
+		}
+	}
+	return nodes
 }
 
 func getInfosJSON() []byte {

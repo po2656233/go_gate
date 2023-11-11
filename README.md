@@ -33,12 +33,12 @@
     <!-- logdir: 日志目录 -->
     <!-- redirect: 是否开启全局tcp重定向 -->
     <!-- heartbeat: 心跳设置 -->
-    <options debug="true" logdir="./logs/" redirect="false">
+    <options debug="true" backup="false" logdir="./logs/" redirect="false" ctrlkey="^^*SDASD)A)$%">
         <heartbeat interval="10" timeout="50"></heartbeat>
     </options>
     <!--开启nacos的服务发现后,优先走nacos节点-->
     <nacos enable="true" level="debug" logdir="/tmp/nacos/log" cachedir="/tmp/nacos/cache" contextpath="/nacos">
-        <item ip="121.37.211.227" port="8848" namespaceid="eaa4c5d3-d6a5-4502-9deb-a4875decd950" groupname="GAME_GROUP" clusters="Games" maxload="1"/>
+        <item ip="121.37.211.227" port="8848" namespaceid="eaa4c5d3-d6a5-4502-9deb-a4875decd950" groupname="GAME_GROUP" clusters="Games" maxload="1000"/>
     </nacos>
     <!--当nacos不启用时，走代理配置-->
     <proxy>

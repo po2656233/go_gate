@@ -23,6 +23,7 @@ type XMLConfig struct {
 type XMLOptions struct {
 	XMLName   xml.Name     `xml:"options"`
 	Debug     bool         `xml:"debug,attr"`
+	Backup    bool         `xml:"backup,attr"`
 	LogDir    string       `xml:"logdir,attr"`
 	Redirect  bool         `xml:"redirect,attr"`
 	CtrlKey   string       `xml:"ctrlkey,attr"`

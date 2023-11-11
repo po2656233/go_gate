@@ -1,5 +1,5 @@
 <setting>
-	<options debug="true" logdir="./logs/" redirect="false" ctrlkey="^^*SDASD)A)$%">
+	<options debug="true" backup="false" logdir="./logs/" redirect="false" ctrlkey="^^*SDASD)A)$%">
 		<heartbeat interval="20" timeout="50"></heartbeat>
 	</options>
 	<nacos enable="true" level="debug" logdir="/tmp/nacos/log" cachedir="/tmp/nacos/cache" contextpath="/nacos">
@@ -13,9 +13,6 @@
 			</line>
 			<line serverid="login">
 				<node ip="127.0.0.1" port="9970" maxload="2" enable="true"></node>
-			</line>
-			<line serverid="jetten">
-				<node ip="192.168.23.102" port="9950" maxload="20000" enable="true"></node>
 			</line>
 		</busline>
 		<busline name="tcp" addr=":20002" type="tcp" redirect="" tls="false" realipmode="tcp">
