@@ -1,39 +1,28 @@
 <setting>
-    <!--基础配置-->
-    <options debug="true" logdir="./logs/" redirect="false" ctrlkey="^^*SDASD)A)$%">
-        <heartbeat interval="20" timeout="50">时间间隔</heartbeat>
-    </options>
-    <!--开启nacos的服务发现后,优先走nacos节点-->
-    <nacos enable="true" level="debug" logdir="/tmp/nacos/log" cachedir="/tmp/nacos/cache" contextpath="/nacos">
-        <item ip="121.37.211.227" port="8848" namespaceid="eaa4c5d3-d6a5-4502-9deb-a4875decd950" groupname="GAME_GROUP" clusters="Games" maxload="1"/>
-    </nacos>
-    <!--当nacos不启用时，走代理配置-->
-    <proxy>
-        <busline name="ws" addr=":9950" type="websocket" redirect="" tls="false" realipmode="http">
-            <route path="/">子路由</route>
-            <line serverid="login">
-                <node ip="127.0.0.1" port="9958" maxload="1" enable="false">登录服</node>
-            </line>
-            <line serverid="login">
-                <node ip="127.0.0.1" port="9970" maxload="2" enable="true">子游戏服</node>
-            </line>
-            <!--			<line serverid="chat">-->
-            <!--				<node ip="0.0.0.0" port="8752" maxload="3000" enable="true">聊天服</node>-->
-            <!--			</line>-->
-            <!--			<line serverid="zjh3">-->
-            <!--				<node ip="0.0.0.0" port="8753" maxload="3000" enable="true">多子游戏服</node>-->
-            <!--				<node ip="0.0.0.0" port="8754" maxload="3000" enable="true">多子游戏服</node>-->
-            <!--				<node ip="0.0.0.0" port="87599" maxload="3000" enable="true">多子游戏服</node>-->
-            <!--				<node ip="0.0.0.0" port="8758" maxload="3000" enable="true">多子游戏服</node>-->
-            <!--			</line>-->
-        </busline>
-        <busline name="tcp" addr=":20002" type="tcp" redirect="" tls="false" realipmode="tcp">
-            <line serverid="Login">
-                <node ip="127.0.0.1" port="10021" maxload="50000" enable="false">tcp登录服</node>
-            </line>
-        </busline>
-    </proxy>
-    <api addr=":10001" type="http" username="##sss^^^" password="(S?SS&amp;^.14" registerpath="/register" querypath="/info" reloadpath="/reload"
-         enablepath="/enableLine" disablepath="">子游戏注册接口
-    </api>
+	<options debug="true" logdir="./logs/" redirect="false" ctrlkey="^^*SDASD)A)$%">
+		<heartbeat interval="20" timeout="50"></heartbeat>
+	</options>
+	<nacos enable="true" level="debug" logdir="/tmp/nacos/log" cachedir="/tmp/nacos/cache" contextpath="/nacos">
+		<item ip="121.37.211.227" port="8848" namespaceid="eaa4c5d3-d6a5-4502-9deb-a4875decd950" groupname="GAME_GROUP" clusters="Games" maxload="1"></item>
+	</nacos>
+	<proxy>
+		<busline name="ws" addr=":9990" type="websocket" redirect="" tls="false" realipmode="http">
+			<route path="/"></route>
+			<line serverid="login">
+				<node ip="127.0.0.1" port="9958" maxload="1" enable="false"></node>
+			</line>
+			<line serverid="login">
+				<node ip="127.0.0.1" port="9970" maxload="2" enable="true"></node>
+			</line>
+			<line serverid="jetten">
+				<node ip="192.168.23.102" port="9950" maxload="20000" enable="true"></node>
+			</line>
+		</busline>
+		<busline name="tcp" addr=":20002" type="tcp" redirect="" tls="false" realipmode="tcp">
+			<line serverid="Login">
+				<node ip="127.0.0.1" port="10021" maxload="50000" enable="false"></node>
+			</line>
+		</busline>
+	</proxy>
+	<api addr=":10001" type="http" username="##sss^^^" password="(S?SS&amp;^.14" registerpath="/register" removepath="/remove" querypath="/info" reloadpath="/reload" enablepath="/enableLine" disablepath=""></api>
 </setting>

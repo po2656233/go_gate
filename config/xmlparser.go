@@ -65,6 +65,7 @@ type XMLHttpApi struct {
 	Username     string   `xml:"username,attr"`
 	Password     string   `xml:"password,attr"`
 	RegisterPath string   `xml:"registerpath,attr"`
+	RemovePath   string   `xml:"removepath,attr"`
 	QueryPath    string   `xml:"querypath,attr"`
 	ReloadPath   string   `xml:"reloadpath,attr"`
 	EnablePath   string   `xml:"enablepath,attr"`

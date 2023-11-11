@@ -29,6 +29,7 @@ type httpHandler struct {
 	Register   string // 注册服务
 	Query      string
 	Reload     string
+	Remove     string
 	Enableline string
 }
 
@@ -81,7 +82,7 @@ type InterfaceInfo struct {
 
 func SaveConfig() bool {
 	// 保存当前配置
-	oldPath := fmt.Sprintf("config_%v.xml", time.Now().Unix())
+	oldPath := fmt.Sprintf("./config/config_%v.xml", time.Now().Unix())
 	_ = os.Rename("./config/config.xml", oldPath)
 	newConfig, err := xml.MarshalIndent(config.GlobalXmlConfig, "", "\t")
 	if err != nil {
@@ -205,105 +206,6 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	register := func() {
-
-		if err := r.ParseMultipartForm(32 << 20); err != nil {
-			w.Write([]byte("warning: Parameter is empty!"))
-			return
-		}
-		strType := r.Form.Get("type")
-		strServerName := r.Form.Get("name")
-		strIp := r.Form.Get("ip")
-		strPort := r.Form.Get("port")
-		strMaxLoad := r.Form.Get("maxload")
-		address := shnet.ParseIP(strIp)
-		maxload, _ := strconv.ParseInt(strMaxLoad, 10, 64)
-		_, err1 := strconv.Atoi(strPort)
-		if strType == "" || strServerName == "" || address == nil || err1 != nil || maxload <= 0 {
-			w.Write([]byte("warning: Parameter is invalid!"))
-			return
-		}
-		isOk := false
-		for _, busLine := range config.GlobalXmlConfig.Proxy.BusLines { //[0
-			if busLine.Type == strType {
-				if proxy, _ := ProxyMgr.GetProxy(busLine.Name); nil != proxy { //[1 获取到的值不能为空，否则新增处理
-					// 查找线路
-					var pline *config.XMLLine = nil
-					addr := fmt.Sprintf("%s:%s", strIp, strPort)
-					for _, line := range busLine.Lines { //[2
-						pLine := proxy.GetLine(line.ServerID, addr)
-						if pLine != nil && pLine.Remote == addr {
-							isOk = true
-							break
-						}
-						if line.ServerID == strServerName {
-							if pLine != nil {
-								isOk = true
-								break
-							}
-							pline = line
-						}
-					} //2]
-					// 已经有了的,就不让注册了
-					if isOk {
-						w.Write([]byte("warning: the service already exists! register"))
-						return
-					}
-
-					// 新增线路
-					switch busLine.Type { //[4
-					case PT_TCP:
-						proxy.(*ProxyTcp).AddLine(strServerName, addr, DEFAULT_TCP_CHECKLINE_TIMEOUT, DEFAULT_TCP_CHECKLINE_INTERVAL, maxload, config.GlobalXmlConfig.Options.Redirect)
-					case PT_WEBSOCKET:
-						proxy.(*ProxyWebsocket).AddLine(strServerName, addr, DEFAULT_TCP_CHECKLINE_TIMEOUT, DEFAULT_TCP_CHECKLINE_INTERVAL, maxload, config.GlobalXmlConfig.Options.Redirect)
-					} //4]
-					// 日志
-					log.Info("register serverId:%v addr:%v", strServerName, addr)
-					switch busLine.Type { //[2'
-					case PT_TCP:
-						proxy.(*ProxyTcp).StartCheckLines()
-					case PT_WEBSOCKET:
-						proxy.(*ProxyWebsocket).StartCheckLines()
-					} //2']
-					if pline == nil {
-						pline = &config.XMLLine{
-							Addr:     busLine.Addr,
-							ServerID: strServerName,
-							Type:     strType,
-							Nodes:    make([]config.XMLNode, 0),
-						}
-						busLine.Lines = append(busLine.Lines, pline)
-					}
-					pline.Nodes = append(pline.Nodes, config.XMLNode{
-						Ip:      strIp,
-						Port:    strPort,
-						Maxload: maxload,
-						Enable:  true,
-					})
-					if strType == "websocket" {
-						pline.RealIpMode = "http"
-					} else {
-						pline.RealIpMode = "tcp"
-					}
-
-					isOk = true
-				}
-			}
-		}
-		// 开一条线
-		if !isOk {
-			log.Info("register type:%v serverId:%v addr:%v port:%v maxload:%v  failed!", strType, strServerName, strIp, strPort, maxload)
-			w.Write([]byte("register failed! "))
-		} else {
-			log.Info("register type:%v serverId:%v addr:%v port:%v maxload:%v   successful!", strType, strServerName, strIp, strPort, maxload)
-			w.Write([]byte("register successful! "))
-			if !SaveConfig() {
-				w.Write([]byte("warning: update config finish! But cannot save config!"))
-			}
-		}
-		return
-	}
-
 	//查询信息
 	query := func() {
 		w.Write(getInfosJSON())
@@ -385,8 +287,11 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Call ParseForm() to parse the raw query and update r.PostForm and r.Form.
 		switch r.URL.Path {
 		case h.Register:
-			register()
-			log.Info("HTTP API:register server ok.")
+			ok := registerNode(w, r)
+			log.Info("HTTP API:register server %v!", ok)
+		case h.Remove:
+			ok := removeNode(w, r)
+			log.Info("HTTP API:remove server %v!", ok)
 		case h.Reload:
 			reload()
 			log.Info("HTTP API:Reload ok.")
@@ -400,6 +305,160 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 	}
 
+}
+
+func registerNode(w http.ResponseWriter, r *http.Request) bool {
+	if err := r.ParseForm(); err != nil {
+		w.Write([]byte(fmt.Sprintf("warning: Parameter is empty!err:%v", err)))
+		return false
+	}
+
+	strType := r.FormValue("type")
+	strServerName := r.FormValue("name")
+	strIp := r.FormValue("ip")
+	strPort := r.FormValue("port")
+	strMaxLoad := r.FormValue("maxload")
+	address := shnet.ParseIP(strIp)
+	maxload, _ := strconv.ParseInt(strMaxLoad, 10, 64)
+	_, err1 := strconv.Atoi(strPort)
+	if strType == "" || strServerName == "" || address == nil || err1 != nil || maxload <= 0 {
+		w.Write([]byte("warning: Parameter is invalid!"))
+		return false
+	}
+	isOk := false
+	for _, busLine := range config.GlobalXmlConfig.Proxy.BusLines { //[0
+		if busLine.Type == strType {
+			if proxy, _ := ProxyMgr.GetProxy(busLine.Name); nil != proxy { //[1 获取到的值不能为空，否则新增处理
+				// 查找线路
+				var pline *config.XMLLine = nil
+				addr := fmt.Sprintf("%s:%s", strIp, strPort)
+				for _, line := range busLine.Lines { //[2
+					pLine := proxy.GetLine(line.ServerID, addr)
+					if pLine != nil && pLine.Remote == addr {
+						isOk = true
+						break
+					}
+					if line.ServerID == strServerName {
+						if pLine != nil {
+							isOk = true
+							break
+						}
+						pline = line
+					}
+				} //2]
+				// 已经有了的,就不让注册了
+				if isOk {
+					w.Write([]byte("warning: the service already exists! register"))
+					return false
+				}
+
+				// 新增线路
+				switch busLine.Type { //[4
+				case PT_TCP:
+					proxy.(*ProxyTcp).AddLine(strServerName, addr, DEFAULT_TCP_CHECKLINE_TIMEOUT, DEFAULT_TCP_CHECKLINE_INTERVAL, maxload, config.GlobalXmlConfig.Options.Redirect)
+				case PT_WEBSOCKET:
+					proxy.(*ProxyWebsocket).AddLine(strServerName, addr, DEFAULT_TCP_CHECKLINE_TIMEOUT, DEFAULT_TCP_CHECKLINE_INTERVAL, maxload, config.GlobalXmlConfig.Options.Redirect)
+				} //4]
+				// 日志
+				log.Info("register serverId:%v addr:%v", strServerName, addr)
+				switch busLine.Type { //[2'
+				case PT_TCP:
+					proxy.(*ProxyTcp).StartCheckLines()
+				case PT_WEBSOCKET:
+					proxy.(*ProxyWebsocket).StartCheckLines()
+				} //2']
+				if pline == nil {
+					pline = &config.XMLLine{
+						Addr:     busLine.Addr,
+						ServerID: strServerName,
+						Type:     strType,
+						Nodes:    make([]config.XMLNode, 0),
+					}
+					busLine.Lines = append(busLine.Lines, pline)
+				}
+				pline.Nodes = append(pline.Nodes, config.XMLNode{
+					Ip:      strIp,
+					Port:    strPort,
+					Maxload: maxload,
+					Enable:  true,
+				})
+				if strType == "websocket" {
+					pline.RealIpMode = "http"
+				} else {
+					pline.RealIpMode = "tcp"
+				}
+
+				isOk = true
+			}
+		}
+	}
+	// 开一条线
+	if !isOk {
+		log.Info("register type:%v serverId:%v addr:%v port:%v maxload:%v  failed!", strType, strServerName, strIp, strPort, maxload)
+		w.Write([]byte("register failed! "))
+	} else {
+		log.Info("register type:%v serverId:%v addr:%v port:%v maxload:%v   successful!", strType, strServerName, strIp, strPort, maxload)
+		w.Write([]byte("register successful! "))
+		if !SaveConfig() {
+			w.Write([]byte("warning: update config finish! But cannot save config!"))
+		}
+	}
+	return true
+}
+func removeNode(w http.ResponseWriter, r *http.Request) bool {
+	if err := r.ParseForm(); err != nil {
+		w.Write([]byte(fmt.Sprintf("warning: Parameter is empty!err:%v", err)))
+		return false
+	}
+
+	strType := r.FormValue("type")
+	strServerName := r.FormValue("name")
+	strIp := r.FormValue("ip")
+	strPort := r.FormValue("port")
+	strMaxLoad := r.FormValue("maxload")
+	address := shnet.ParseIP(strIp)
+	maxload, _ := strconv.ParseInt(strMaxLoad, 10, 64)
+	_, err1 := strconv.Atoi(strPort)
+	if strType == "" || strServerName == "" || address == nil || err1 != nil || maxload <= 0 {
+		w.Write([]byte("warning: Parameter is invalid!"))
+		return false
+	}
+	isOk := false
+	for _, busLine := range config.GlobalXmlConfig.Proxy.BusLines { //[0
+		if busLine.Type == strType {
+			if proxy, _ := ProxyMgr.GetProxy(busLine.Name); nil != proxy { //[1 获取到的值不能为空，否则新增处理
+				// 查找线路
+				addr := fmt.Sprintf("%s:%s", strIp, strPort)
+				for i, line := range busLine.Lines { //[2
+					pLine := proxy.GetLine(line.ServerID, addr)
+					if pLine != nil && pLine.Remote == addr {
+						isOk = true
+						busLine.Lines = append(busLine.Lines[:i], busLine.Lines[i+1:]...)
+						break
+					}
+					if line.ServerID == strServerName {
+						if pLine != nil {
+							isOk = true
+							busLine.Lines = append(busLine.Lines[:i], busLine.Lines[i+1:]...)
+							break
+						}
+					}
+				} //2]
+			}
+		}
+	}
+	// 开一条线
+	if !isOk {
+		log.Info("remove line type:%v serverId:%v addr:%v port:%v maxload:%v  failed!", strType, strServerName, strIp, strPort, maxload)
+		w.Write([]byte("remove line failed:no have! "))
+	} else {
+		log.Info("remove line type:%v serverId:%v addr:%v port:%v maxload:%v   successful!", strType, strServerName, strIp, strPort, maxload)
+		w.Write([]byte("remove line successful! "))
+		if !SaveConfig() {
+			w.Write([]byte("warning: remove and update config finish! But cannot save config!"))
+		}
+	}
+	return isOk
 }
 
 func getInfosJSON() []byte {
@@ -471,6 +530,7 @@ func InitApi() {
 	mux := http.NewServeMux()
 	hh := &httpHandler{
 		Register:   config.GlobalXmlConfig.HttpApi.RegisterPath,
+		Remove:     config.GlobalXmlConfig.HttpApi.RemovePath,
 		Query:      config.GlobalXmlConfig.HttpApi.QueryPath,
 		Reload:     config.GlobalXmlConfig.HttpApi.ReloadPath,
 		Enableline: config.GlobalXmlConfig.HttpApi.EnablePath,

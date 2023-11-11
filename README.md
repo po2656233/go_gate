@@ -61,7 +61,7 @@
     </proxy>
     <!-- 对外服务端口 register:服务注册-->
     <api addr=":10001" type="http" username="##sss^^^" password="(S?SS&amp;^.14" registerpath="/register" querypath="/info" reloadpath="/reload"
-         enablepath="/enableLine" disablepath="">子游戏注册接口
+         enablepath="/enableLine" removepath="/remove" disablepath="">子游戏注册接口
     </api>
 </setting>
 ```
