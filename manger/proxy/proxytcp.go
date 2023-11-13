@@ -3,13 +3,13 @@ package proxy
 import (
 	"github.com/nothollyhigh/kiss/log"
 	"github.com/nothollyhigh/kiss/util"
-	"go_gate/config"
+	"go_gate/clients"
 	"net"
 	"strings"
 	"time"
 )
 
-/* tcp 代理 */
+// ProxyTcp /* tcp 代理 */
 type ProxyTcp struct {
 	*ProxyBase
 	Running       bool
@@ -171,10 +171,10 @@ func (ptcp *ProxyTcp) OnNew(clientConn *net.TCPConn) {
 					serverAddr = serverData[1]
 				}
 				if serverID != defaultServerID && serverAddr == "" { // 不走默认服务器,则需查找之前的服务端地址
-					redisHandle := config.RedisHandle()
+					redisHandle := clients.RedisHandle()
 					if redisHandle != nil {
 						// 查找链路,若无法链接,则获取新节点作为链路
-						platAccount = redisHandle.Get(config.GetAddressKey(clientAddr)).Val()
+						platAccount = redisHandle.Get(clients.GetAddressKey(clientAddr)).Val()
 						if sAddr, ok := AccountMgr.Load(platAccount + flag); ok {
 							serverAddr = sAddr.(string)
 						}
@@ -226,7 +226,7 @@ func (ptcp *ProxyTcp) OnNew(clientConn *net.TCPConn) {
 
 				line.UpdateDelay(time.Since(t1))
 
-				line.UpdateLoad(1)
+				curLoad := line.UpdateLoad(1)
 				defer line.UpdateLoad(-1)
 
 				ConnMgr.UpdateOutNum(1)
@@ -234,7 +234,7 @@ func (ptcp *ProxyTcp) OnNew(clientConn *net.TCPConn) {
 
 				ConnMgr.UpdateSuccessNum(1)
 
-				log.Info("Session(%s -> %s) Established", clientAddr, line.Remote)
+				log.Info("Session(%s -> %s) loadCount:%v Established", clientAddr, line.Remote, curLoad)
 
 				ptcp.InitConn(serverConn)
 
@@ -368,7 +368,7 @@ func NewTcpProxy(name string, local string) *ProxyTcp {
 		RecvBufLen:    DEFAULT_TCP_READ_BUF_LEN,
 		SendBlockTime: DEFAULT_TCP_WRITE_BLOCK_TIME,
 		SendBufLen:    DEFAULT_TCP_WRITE_BUF_LEN,
-		Nodelay:       DEFAULT_TCP_NODELAY,
+		Nodelay:       true, //DEFAULT_TCP_NODELAY,
 
 		ProxyBase: &ProxyBase{
 			name:  name,

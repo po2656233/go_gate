@@ -152,8 +152,8 @@ func (line *Line) Stop() {
 }
 
 /* 更新负载 */
-func (line *Line) UpdateLoad(delta int64) {
-	atomic.AddInt64(&(line.CurLoad), delta)
+func (line *Line) UpdateLoad(delta int64) int64 {
+	return atomic.AddInt64(&(line.CurLoad), delta)
 }
 
 /* 暂停在此线路选路和进行代理连接 */

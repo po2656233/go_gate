@@ -8,6 +8,7 @@ import (
 	knet "github.com/nothollyhigh/kiss/net"
 	"github.com/nothollyhigh/kiss/util"
 	"github.com/tomasen/realip"
+	"go_gate/clients"
 	"go_gate/config"
 	"strings"
 
@@ -127,10 +128,10 @@ func (pws *ProxyWebsocket) OnNew(w http.ResponseWriter, r *http.Request) {
 		serverAddr = serverData[1]
 	}
 	if serverID != defaultServerID && serverAddr == "" { // 不走默认服务器,则需查找之前的服务端地址
-		redisHandle := config.RedisHandle()
+		redisHandle := clients.RedisHandle()
 		if redisHandle != nil {
 			// 查找链路,若无法链接,则获取新节点作为链路
-			platAccount = redisHandle.Get(config.GetAddressKey(wsAddr)).Val()
+			platAccount = redisHandle.Get(clients.GetAddressKey(wsAddr)).Val()
 			if sAddr, ok := AccountMgr.Load(platAccount + flag); ok {
 				serverAddr = sAddr.(string)
 			}
@@ -141,7 +142,6 @@ func (pws *ProxyWebsocket) OnNew(w http.ResponseWriter, r *http.Request) {
 			if sAddr, ok := ClientMgr.Load(wsAddr + flag); ok {
 				serverAddr = sAddr.(string)
 			}
-
 		}
 	}
 
@@ -154,7 +154,12 @@ func (pws *ProxyWebsocket) OnNew(w http.ResponseWriter, r *http.Request) {
 	wHead.Add("Sec-Websocket-Protocol", serverInfo)
 
 	// http升级至websocket
-	wsConn, err := DefaultUpgrade.Upgrade(w, r, wHead)
+	wsConn, err0 := DefaultUpgrade.Upgrade(w, r, wHead)
+	if err0 != nil {
+		log.Error("client address:%v Err: %s", wsAddr, err0.Error())
+		http.NotFound(w, r)
+		return
+	}
 	wsConn.SetCloseHandler(func(closeCode int, text string) error {
 		_ = wsConn.Close()
 		return errors.New(" the server stops processing! ")
@@ -170,7 +175,7 @@ func (pws *ProxyWebsocket) OnNew(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//检测IP是否可用
-	if _, err = net.ResolveTCPAddr("tcp", line.Remote); err != nil {
+	if _, err := net.ResolveTCPAddr("tcp", line.Remote); err != nil {
 		log.Info("Session(%s -> %s, TLS: %v) ResolveTCPAddr Err: %s", wsAddr, line.Remote, pws.EnableTls, err.Error())
 		_ = wsConn.Close()
 		line.UpdateDelay(UnreachableTime)
@@ -315,7 +320,7 @@ func (pws *ProxyWebsocket) OnNew(w http.ResponseWriter, r *http.Request) {
 				line.UpdateDelay(time.Since(t1))
 
 				//统计负载量
-				line.UpdateLoad(1)
+				curLoad := line.UpdateLoad(1)
 				defer line.UpdateLoad(-1)
 
 				//统计当前连接数
@@ -325,7 +330,7 @@ func (pws *ProxyWebsocket) OnNew(w http.ResponseWriter, r *http.Request) {
 				//统计连接成功数
 				ConnMgr.UpdateSuccessNum(1)
 
-				log.Info("Session(%s -> %s, TLS: %v) Established", wsAddr, line.Remote, pws.EnableTls)
+				log.Info("Session(%s -> %s, TLS: %v) loadCount:%v Established", wsAddr, line.Remote, pws.EnableTls, curLoad)
 
 				//传真实IP
 				if err = line.HandleRedirectWeb(serverConn, wsAddr); err != nil {
