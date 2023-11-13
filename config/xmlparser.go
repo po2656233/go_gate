@@ -28,6 +28,7 @@ type XMLOptions struct {
 	Redirect  bool         `xml:"redirect,attr"`
 	CtrlKey   string       `xml:"ctrlkey,attr"`
 	Heartbeat XMLHeartbeat `xml:"heartbeat"`
+	RedisInfo XMLRedis     `xml:"redis"`
 }
 
 // XMLHeartbeat 心跳
@@ -35,6 +36,14 @@ type XMLHeartbeat struct {
 	XMLName  xml.Name `xml:"heartbeat"`
 	Interval int      `xml:"interval,attr"`
 	Timeout  int      `xml:"timeout,attr"`
+}
+
+// XMLRedis redis配置
+type XMLRedis struct {
+	XMLName  xml.Name `xml:"redis"`
+	Address  string   `xml:"address,attr"`
+	Password string   `xml:"password,attr"`
+	DBNum    int      `xml:"dbnum,attr"`
 }
 
 // XMLNacos Nacos配置信息

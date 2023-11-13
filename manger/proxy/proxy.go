@@ -34,7 +34,6 @@ var (
 type IProxy interface {
 	GetLine(serverID, addr string) *Line       // 获取节点线路(确切)
 	GetBestLine() *Line                        // 获取最优线路
-	AssignLine(serverID string) *Line          // 指定线路
 	ReserveLines(lines []*config.XMLLine) bool // 保留有效线路(不在配置内的线路被视为无效)
 	LinesForJSON() []byte                      // 线路信息
 }
@@ -69,14 +68,11 @@ func (mgr *ProxyBase) GetBestLine() *Line {
 	mgr.RLock()
 	defer mgr.RUnlock()
 
-	return mgr.GetBestLineWithoutLock()
+	return mgr.getBestLineWithoutLock()
 }
 
 /* 根据serverID获取指定线路 */
-func (mgr *ProxyBase) AssignLine(serverID string) *Line {
-	mgr.RLock()
-	defer mgr.RUnlock()
-
+func (mgr *ProxyBase) assignLine(serverID string) *Line {
 	// 启用nacos时,则从nacos中获取服务地址
 	if config.GlobalXmlConfig.Nacos.Enable {
 		if config.GlobalXmlConfig.Nacos.Level == "subscribe" {
@@ -119,6 +115,11 @@ func (mgr *ProxyBase) AssignLine(serverID string) *Line {
 func (mgr *ProxyBase) GetLine(serverID string, addr string) *Line {
 	mgr.RLock()
 	defer mgr.RUnlock()
+	// 没有指定地址,则根据serverID获取线路
+	if addr == "" {
+		return mgr.assignLine(serverID)
+	}
+
 	for i := 0; i < len(mgr.lines); i++ {
 		if strings.EqualFold(mgr.lines[i].LineID, serverID) && mgr.lines[i].Remote == addr {
 			return mgr.lines[i]
@@ -128,7 +129,7 @@ func (mgr *ProxyBase) GetLine(serverID string, addr string) *Line {
 }
 
 /* 当前最适合的线路 */
-func (mgr *ProxyBase) GetBestLineWithoutLock() *Line {
+func (mgr *ProxyBase) getBestLineWithoutLock() *Line {
 	if len(mgr.lines) > 0 {
 		line := mgr.lines[0]
 		for i := 1; i < len(mgr.lines); i++ {
@@ -145,7 +146,6 @@ func (mgr *ProxyBase) GetBestLineWithoutLock() *Line {
 }
 
 func (mgr *ProxyBase) ReserveLines(lines []*config.XMLLine) bool {
-
 	have := false
 	for i := len(mgr.lines) - 1; i > 0; i-- {
 		for j := 0; j < len(lines); j++ {

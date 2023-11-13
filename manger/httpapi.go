@@ -412,10 +412,10 @@ func registerNode(w http.ResponseWriter, r *http.Request) bool {
 	}
 	// 开一条线
 	if !isOk {
-		log.Info("register type:%v serverId:%v addr:%v port:%v maxload:%v  failed!", strType, strServerName, strIp, strPort, maxload)
+		log.Info("register type:%v serverId:%v addr:%v:%v maxload:%v  failed!", strType, strServerName, strIp, strPort, maxload)
 		w.Write([]byte("register failed! "))
 	} else {
-		log.Info("register type:%v serverId:%v addr:%v port:%v maxload:%v   successful!", strType, strServerName, strIp, strPort, maxload)
+		log.Info("register type:%v serverId:%v addr:%v:%v maxload:%v   successful!", strType, strServerName, strIp, strPort, maxload)
 
 		if !SaveConfig() {
 			w.Write([]byte("register successful! "))
@@ -476,10 +476,10 @@ func removeNode(w http.ResponseWriter, r *http.Request) bool {
 	}
 	// 开一条线
 	if !isOk {
-		log.Info("remove line type:%v serverId:%v addr:%v port:%v maxload:%v  failed!", strType, strServerName, strIp, strPort, maxload)
+		log.Info("remove line type:%v serverId:%v addr:%v:%v maxload:%v  failed!", strType, strServerName, strIp, strPort, maxload)
 		w.Write([]byte("remove line failed:no have! "))
 	} else {
-		log.Info("remove line type:%v serverId:%v addr:%v port:%v maxload:%v   successful!", strType, strServerName, strIp, strPort, maxload)
+		log.Info("remove line type:%v serverId:%v addr:%v:%v maxload:%v   successful!", strType, strServerName, strIp, strPort, maxload)
 		if !SaveConfig() {
 			w.Write([]byte("remove successful! "))
 		} else {

@@ -22,8 +22,8 @@ var BornTime = time.Now() /* 进程启动时间 */
 const (
 	defaultTimeout  = time.Second * 5
 	UnreachableTime = time.Duration(-1)
-	Unpausecheck    = time.Second * 0
-	COUNT_MINUTES   = 60
+	UnpauseCheck    = time.Second * 0
+	CountMinutes    = 60
 	MsgUserIP       = 88888888
 	MsgRegServer    = 88888889
 )
@@ -59,8 +59,8 @@ type Line struct {
 
 	ChUpdateDelay chan time.Duration `json:"_"` /* 用于外部更新线路当前延迟的channel，外部进行更新后本线路的线路检测reset计时周期避免浪费 */
 
-	FailedRecord     [COUNT_MINUTES]FailedInMunite `json:"_"` /* 环形队列，记录过去COUNT_MINUTES分钟内连接失败次数 */
-	FailedRecordHead int                           `json:"_"` /* 环形队列头 */
+	FailedRecord     [CountMinutes]FailedInMunite `json:"_"` /* 环形队列，记录过去COUNT_MINUTES分钟内连接失败次数 */
+	FailedRecordHead int                          `json:"_"` /* 环形队列头 */
 }
 
 /* 线路分数，小于0为线路不可用 */
@@ -225,7 +225,7 @@ func (line *Line) UpdateFailedNum(delta int64) {
 	line.Lock()
 	defer line.Unlock()
 
-	currHead := int(time.Since(BornTime).Minutes()) % COUNT_MINUTES
+	currHead := int(time.Since(BornTime).Minutes()) % CountMinutes
 	if currHead != line.FailedRecordHead || time.Since(line.FailedRecord[line.FailedRecordHead].Time).Minutes() >= 1.0 {
 		line.FailedRecordHead = currHead
 		line.FailedRecord[currHead] = FailedInMunite{
@@ -242,13 +242,13 @@ func (line *Line) GetFailedInLastNMinutes(n int) int64 {
 	line.Lock()
 	defer line.Unlock()
 
-	if n > 0 && n <= COUNT_MINUTES {
+	if n > 0 && n <= CountMinutes {
 		var total int64 = 0
 		for i := 0; i < n; i++ {
-			if time.Since(line.FailedRecord[(line.FailedRecordHead+COUNT_MINUTES-i)%COUNT_MINUTES].Time).Minutes() >= float64(n) {
+			if time.Since(line.FailedRecord[(line.FailedRecordHead+CountMinutes-i)%CountMinutes].Time).Minutes() >= float64(n) {
 				break
 			}
-			total += line.FailedRecord[(line.FailedRecordHead+COUNT_MINUTES-i)%COUNT_MINUTES].FailedNum
+			total += line.FailedRecord[(line.FailedRecordHead+CountMinutes-i)%CountMinutes].FailedNum
 		}
 		return total
 	}
@@ -297,7 +297,7 @@ func NewLine(id, remote string, timeout time.Duration, interval time.Duration, m
 	failed := FailedInMunite{
 		Time: time.Now(),
 	}
-	for i := 0; i < COUNT_MINUTES; i++ {
+	for i := 0; i < CountMinutes; i++ {
 		line.FailedRecord[i] = failed
 	}
 	return line

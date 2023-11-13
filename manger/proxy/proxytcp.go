@@ -3,7 +3,9 @@ package proxy
 import (
 	"github.com/nothollyhigh/kiss/log"
 	"github.com/nothollyhigh/kiss/util"
+	"go_gate/config"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -44,15 +46,16 @@ func (ptcp *ProxyTcp) InitConn(conn *net.TCPConn) bool {
 	return true
 }
 
-//节点走这
+// 节点走这
 func (ptcp *ProxyTcp) OnNew(clientConn *net.TCPConn) {
 	defer util.HandlePanic()
 
 	var (
-		line       *Line
+		line       *Line = nil
 		serverConn *net.TCPConn
 		tcpAddr    *net.TCPAddr
 		clientAddr = clientConn.RemoteAddr().String()
+		flag       = separator + PT_TCP
 	)
 
 	ConnMgr.UpdateInNum(1)
@@ -145,21 +148,48 @@ func (ptcp *ProxyTcp) OnNew(clientConn *net.TCPConn) {
 			if serverConn == nil {
 				// 校验第一个数据包是否有效
 				nReadLen := len(buf)
-				//if nReadLen < HEAD_LEN || nReadLen - HEAD_LEN != int(binary.BigEndian.Uint32(buf[:4])) - MSGID_LEN - ERRCODE_LEN{
-				//	clientConn.Close()
-				//	ConnMgr.UpdateFailedNum(1)
-				//	//线路延迟
-				//	if line != nil{
-				//		line.UpdateDelay(UnreachableTime)
-				//		//统计连接失败数
-				//		line.UpdateFailedNum(1)
-				//		log.Info("Session(%s -> %s) protocol Failed",clientAddr,  line.Remote)
-				//	}
-				//	return
-				//}
+				if nReadLen < HEAD_LEN /*|| nReadLen - HEAD_LEN != int(binary.BigEndian.Uint32(buf[:4])) - MSGID_LEN - ERRCODE_LEN*/ {
+					clientConn.Close()
+					ConnMgr.UpdateFailedNum(1)
+					//线路延迟
+					if line != nil {
+						line.UpdateDelay(UnreachableTime)
+						//统计连接失败数
+						line.UpdateFailedNum(1)
+						log.Info("Session(%s -> %s) protocol Failed", clientAddr, line.Remote)
+					}
+					return
+				}
 
 				// 获取serverID
-				line = ptcp.AssignLine(string(buf[HEAD_LEN : nReadLen-HEAD_LEN]))
+				serverInfo := string(buf[HEAD_LEN : nReadLen-HEAD_LEN])
+				serverData := strings.Split(serverInfo, separator)
+				serverID := serverData[0]
+				serverAddr := ""
+				platAccount := "" // 平台账号
+				if 1 < len(serverData) {
+					serverAddr = serverData[1]
+				}
+				if serverID != defaultServerID && serverAddr == "" { // 不走默认服务器,则需查找之前的服务端地址
+					redisHandle := config.RedisHandle()
+					if redisHandle != nil {
+						// 查找链路,若无法链接,则获取新节点作为链路
+						platAccount = redisHandle.Get(config.GetAddressKey(clientAddr)).Val()
+						if sAddr, ok := AccountMgr.Load(platAccount + flag); ok {
+							serverAddr = sAddr.(string)
+						}
+					}
+
+					// 查找原有服务地址
+					if serverAddr == "" {
+						if sAddr, ok := ClientMgr.Load(clientAddr + flag); ok {
+							serverAddr = sAddr.(string)
+						}
+					}
+				}
+
+				// 查找原有服务地址
+				line = ptcp.GetLine(serverID, serverAddr)
 				if line == nil {
 					log.Info("Session(%s -> null) Failed, GetBestLine Failed", clientAddr)
 					clientConn.Close()
@@ -185,6 +215,14 @@ func (ptcp *ProxyTcp) OnNew(clientConn *net.TCPConn) {
 					ConnMgr.UpdateFailedNum(1)
 					return
 				}
+				// 绑定服务端
+				if serverID != defaultServerID {
+					if platAccount != "" {
+						AccountMgr.Store(platAccount+flag, line.Remote)
+					} else {
+						ClientMgr.Store(clientAddr+flag, line.Remote)
+					}
+				}
 
 				line.UpdateDelay(time.Since(t1))
 
@@ -200,7 +238,7 @@ func (ptcp *ProxyTcp) OnNew(clientConn *net.TCPConn) {
 
 				ptcp.InitConn(serverConn)
 
-				// TCP 真实IP数据透传
+				//// TCP 真实IP数据透传
 				//if HEAD_LEN <= nread && MsgUserIP == int(binary.BigEndian.Uint32(buf[4:4+MSGID_LEN])){
 				//	serverConn.Write(buf)
 				//}else if err = line.HandleRedirect(serverConn, line.Remote); err != nil {

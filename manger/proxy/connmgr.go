@@ -3,6 +3,7 @@ package proxy
 import (
 	"fmt"
 	"github.com/nothollyhigh/kiss/log"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -18,6 +19,8 @@ var (
 		ServerInSize:  0,
 		ServerOutSize: 0,
 	}
+	AccountMgr = sync.Map{} // 保存 平台账号(key) 服务地址(value)
+	ClientMgr  = sync.Map{} // 保存 客户端地址(key) 服务地址(value)
 )
 
 type ConnManger struct {

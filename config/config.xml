@@ -1,6 +1,7 @@
 <setting>
 	<options debug="true" backup="false" logdir="./logs/" redirect="false" ctrlkey="^^*SDASD)A)$%">
 		<heartbeat interval="20" timeout="50"></heartbeat>
+		<redis address="127.0.0.1:6379" password="" dbnum="0"></redis>
 	</options>
 	<nacos enable="true" level="debug" logdir="/tmp/nacos/log" cachedir="/tmp/nacos/cache" contextpath="/nacos">
 		<item ip="121.37.211.227" port="8848" namespaceid="eaa4c5d3-d6a5-4502-9deb-a4875decd950" groupname="GAME_GROUP" clusters="Games" maxload="1"></item>
