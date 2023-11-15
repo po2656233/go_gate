@@ -50,6 +50,7 @@ type XMLRedis struct {
 type XMLNacos struct {
 	XMLName     xml.Name     `xml:"nacos"`
 	Enable      bool         `xml:"enable,attr"`
+	Subscribe   bool         `xml:"subscribe,attr"`
 	Level       string       `xml:"level,attr"`
 	Logdir      string       `xml:"logdir,attr"`
 	Cachedir    string       `xml:"cachedir,attr"`

@@ -37,8 +37,8 @@
         <heartbeat interval="10" timeout="50"></heartbeat>
     </options>
     <!--开启nacos的服务发现后,优先走nacos节点-->
-    <nacos enable="true" level="debug" logdir="/tmp/nacos/log" cachedir="/tmp/nacos/cache" contextpath="/nacos">
-        <item ip="121.37.211.227" port="8848" namespaceid="eaa4c5d3-d6a5-4502-9deb-a4875decd950" groupname="GAME_GROUP" clusters="Games" maxload="1000"/>
+    <nacos enable="true" subscribe="false" level="debug" logdir="/tmp/nacos/log" cachedir="/tmp/nacos/cache" contextpath="/nacos">
+        <item ip="121.37.211.227" port="8848" namespaceid="eaa4c5d3-d6a5-4502-9deb-a4875decd950" groupname="GAME_GROUP" clusters="Games" maxload="1"></item>
     </nacos>
     <!--当nacos不启用时，走代理配置-->
     <proxy>
