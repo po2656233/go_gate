@@ -3,6 +3,7 @@ module go_gate
 go 1.18
 
 require (
+	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/golang/protobuf v1.5.0
 	github.com/gorilla/websocket v1.4.1
 	github.com/nacos-group/nacos-sdk-go v1.1.4
@@ -19,7 +20,6 @@ require (
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-ole/go-ole v1.2.4 // indirect
-	github.com/go-redis/redis v6.15.7+incompatible // indirect
 	github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af // indirect
 	github.com/json-iterator/go v1.1.9 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
